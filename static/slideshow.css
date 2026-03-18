@@ -1,0 +1,89 @@
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  cursor: none;
+}
+
+#frame {
+  position: relative;
+  width: 100%; height: 100%;
+}
+
+/* Blurred background layer */
+#bg-layer {
+  position: absolute;
+  inset: -40px;  /* bleed past edges so blur doesn't show black border */
+  background-size: cover;
+  background-position: center;
+  filter: blur(30px) brightness(0.4);
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+#bg-layer.visible { opacity: 1; }
+
+/* Photo layers */
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+.photo.active { opacity: 1; }
+
+/* Fit modes */
+.photo.fit-fit       { object-fit: contain; }
+.photo.fit-fill      { object-fit: cover; }
+.photo.fit-ken_burns { object-fit: cover; }
+
+/* Ken Burns animation */
+@keyframes kenburns {
+  0%   { transform: scale(1.0) translate(0, 0); }
+  100% { transform: scale(1.15) translate(-1.5%, -1%); }
+}
+.photo.ken-burns-active {
+  animation: kenburns 30s ease-in-out forwards;
+}
+
+/* Slide transition */
+.photo.slide-enter {
+  transition: none;
+  transform: translateX(100%);
+  opacity: 1;
+}
+.photo.slide-in {
+  transition: transform 1.5s ease;
+  transform: translateX(0);
+  opacity: 1;
+}
+.photo.slide-out {
+  transition: transform 1.5s ease;
+  transform: translateX(-100%);
+}
+
+/* Info overlay */
+#info-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 10;
+  padding: 16px 24px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+}
+#info-overlay.hidden { display: none; }
+
+/* Power save overlay */
+#power-save-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+}
+#power-save-overlay.hidden { display: none; }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Photo Frame Remote</title>
+<link rel="stylesheet" href="/static/remote.css">
+</head>
+<body>
+  <header>
+    <h1>Photo Frame</h1>
+    <select id="playlist-select"></select>
+  </header>
+
+  <section id="now-playing">
+    <img id="current-photo" src="" alt="Current photo">
+    <div id="photo-meta">
+      <div id="rating-display"></div>
+      <div id="people-display"></div>
+      <div id="keywords-display"></div>
+    </div>
+  </section>
+
+  <nav id="controls">
+    <button id="btn-prev" title="Previous">&laquo;</button>
+    <button id="btn-pause" title="Pause/Resume">&#9646;&#9646;</button>
+    <button id="btn-next" title="Next">&raquo;</button>
+  </nav>
+
+  <section id="rating-editor" class="hidden">
+    <h3>Rate this photo</h3>
+    <div id="stars">
+      <button class="star" data-rating="1">&#9733;</button>
+      <button class="star" data-rating="2">&#9733;</button>
+      <button class="star" data-rating="3">&#9733;</button>
+      <button class="star" data-rating="4">&#9733;</button>
+      <button class="star" data-rating="5">&#9733;</button>
+    </div>
+    <button id="btn-clear-rating">Clear rating</button>
+  </section>
+
+  <section id="history-section">
+    <h3>Recently Played</h3>
+    <div id="history-strip"></div>
+  </section>
+
+  <script src="/static/remote.js"></script>
+</body>
+</html>

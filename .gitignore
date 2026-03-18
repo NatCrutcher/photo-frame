@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.db
+test_photos/
+plans/
+.claude/
