@@ -127,7 +127,38 @@ history:
 
 ## NAS Mount
 
-On the Pi, mount the Synology share via SMB in `/etc/fstab`:
+The photo directory is typically a network share from a Synology NAS (or similar). Both NFS and SMB work. NFS has lower overhead and is a better fit for a dedicated Linux device like a Pi. SMB is the better choice if the share is also accessed from Windows or Mac and you need user-level authentication.
+
+The mount needs read-write access so that rating changes can be written back to the JPEG files.
+
+### NFS
+
+Enable NFS on the Synology: **Control Panel > Shared Folder > (select folder) > Edit > NFS Permissions**. Add a rule for the Pi's IP with read/write access.
+
+Install the NFS client on the Pi:
+
+```sh
+sudo apt install nfs-common
+```
+
+Add to `/etc/fstab`:
+
+```
+nas-ip:/volume1/photos /mnt/photos nfs rw,soft,intr,noatime 0 0
+```
+
+Then mount:
+
+```sh
+sudo mkdir -p /mnt/photos
+sudo mount /mnt/photos
+```
+
+`soft,intr` lets operations fail gracefully if the NAS is unreachable, rather than hanging the Pi. `noatime` avoids unnecessary write traffic.
+
+### SMB
+
+Add to `/etc/fstab`:
 
 ```
 //nas-ip/photos /mnt/photos cifs credentials=/etc/samba/creds,uid=1000,gid=1000,iocharset=utf8 0 0
@@ -140,7 +171,11 @@ username=your_user
 password=your_password
 ```
 
-The mount needs read-write access so that rating changes can be written back to the JPEG files.
+Protect the credentials file:
+
+```sh
+sudo chmod 600 /etc/samba/creds
+```
 
 ## Lightroom Integration
 

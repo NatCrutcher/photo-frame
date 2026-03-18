@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.db
+config.yaml
 test_photos/
 plans/
 .claude/

@@ -36,7 +36,11 @@ class FrameState:
         self.last_change = time.time()
 
         playlists = load_playlists(config)
-        self.active_playlist_id = next(iter(playlists), None)
+        default = config.get("default_playlist")
+        if default and default in playlists:
+            self.active_playlist_id = default
+        else:
+            self.active_playlist_id = next(iter(playlists), None)
         if self.active_playlist_id:
             self.load_playlist(self.active_playlist_id)
 
@@ -44,9 +48,13 @@ class FrameState:
         playlists = load_playlists(self.config)
         if playlist_id not in playlists:
             return False
-        shuffle = self.config.get("display", {}).get("shuffle", True)
+        playlist_config = playlists[playlist_id]
+        shuffle = playlist_config.get("shuffle",
+                                      self.config.get("display", {}).get("shuffle", True))
+        global_exclude = self.config.get("exclude")
         self.active_playlist_id = playlist_id
-        self.photos = get_playlist_photos(playlists[playlist_id], shuffle=shuffle)
+        self.photos = get_playlist_photos(
+            playlist_config, shuffle=shuffle, global_exclude=global_exclude)
         self.index = -1
         self.advance()
         return True
@@ -116,6 +124,8 @@ def _photo_response(photo):
         return None
     p = dict(photo)
     p["url"] = _photo_url(photo)
+    mount = os.path.abspath(config["nas"]["mount_point"])
+    p["relative_path"] = os.path.relpath(photo["path"], mount)
     return p
 
 
@@ -170,7 +180,7 @@ def api_now_playing():
             "photo": _photo_response(state.current_photo),
             "playlist": state.active_playlist_id,
             "paused": state.paused,
-            "interval": config.get("display", {}).get("interval_secs", 30),
+            "interval": _effective_display("interval_secs", 30),
             "display": {
                 "fit_mode": _effective_display("fit_mode", "fit"),
                 "background": _effective_display("background", "black"),

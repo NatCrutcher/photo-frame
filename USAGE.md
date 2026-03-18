@@ -13,13 +13,53 @@ python3 indexer.py /path/to/config.yaml   # explicit config path
 
 The indexer is idempotent -- run it as often as you like. It upserts photos that changed and removes photos that were deleted from disk.
 
-### Automatic Indexing with Cron
+### Automatic Indexing with a Systemd Timer
 
-Run every 30 minutes:
+Create `/etc/systemd/system/photo-indexer.service`:
+
+```ini
+[Unit]
+Description=Photo Frame Indexer
+After=network.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/photo-frame
+ExecStart=/home/pi/photo-frame/venv/bin/python indexer.py
+```
+
+Create `/etc/systemd/system/photo-indexer.timer`:
+
+```ini
+[Unit]
+Description=Run photo indexer every 30 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30min
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable and start the timer:
 
 ```sh
-crontab -e
+sudo systemctl enable --now photo-indexer.timer
 ```
+
+Check status and logs:
+
+```sh
+systemctl status photo-indexer.timer    # next run time
+systemctl list-timers                   # all active timers
+journalctl -u photo-indexer             # indexer output
+```
+
+### Alternative: Cron
+
+If you prefer cron:
 
 ```
 */30 * * * * cd /home/pi/photo-frame && /home/pi/photo-frame/venv/bin/python indexer.py >> /tmp/indexer.log 2>&1
@@ -158,6 +198,13 @@ The SQLite database defaults to `frame.db` in the working directory. Override wi
 
 ```sh
 FRAME_DB=/home/pi/photo-frame/frame.db python3 app.py
+```
+
+The database is a derived cache of photo metadata -- it can be safely deleted and rebuilt at any time:
+
+```sh
+rm frame.db
+python3 indexer.py
 ```
 
 Keep the database on the Pi's local filesystem (SD card or USB drive), not on the NAS mount -- SQLite's file locking is unreliable over network filesystems.

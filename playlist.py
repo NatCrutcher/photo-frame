@@ -61,10 +61,38 @@ def build_query(playlist_filter):
     return where, params
 
 
-def get_playlist_photos(playlist_config, shuffle=True):
+def build_exclude_conditions(exclude_config):
+    """Build SQL conditions that exclude matching photos."""
+    conditions = []
+    params = []
+    for person in exclude_config.get("people", []):
+        conditions.append("NOT (people LIKE ?)")
+        params.append(f'%"{person}"%')
+    for kw in exclude_config.get("keywords", []):
+        conditions.append("NOT (keywords LIKE ?)")
+        params.append(f'%"{kw}"%')
+    return conditions, params
+
+
+def get_playlist_photos(playlist_config, shuffle=True, global_exclude=None):
     """Return list of photo dicts matching a playlist's filter."""
     filt = playlist_config.get("filter", {})
     where, params = build_query(filt)
+
+    # Playlist-level excludes
+    playlist_exclude = playlist_config.get("exclude", {})
+    if playlist_exclude:
+        conds, prms = build_exclude_conditions(playlist_exclude)
+        if conds:
+            where += " AND " + " AND ".join(conds)
+            params.extend(prms)
+
+    # Global excludes
+    if global_exclude:
+        conds, prms = build_exclude_conditions(global_exclude)
+        if conds:
+            where += " AND " + " AND ".join(conds)
+            params.extend(prms)
 
     with get_db() as conn:
         rows = conn.execute(

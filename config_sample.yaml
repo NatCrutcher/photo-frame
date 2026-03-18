@@ -1,0 +1,65 @@
+nas:
+  mount_point: "/mnt/photos"    # NAS mount point or local folder
+
+default_playlist: "all"
+
+# Global excludes — photos matching these are hidden from all playlists
+# exclude:
+#   people: ["PersonToHide"]
+#   keywords: ["keyword-to-hide"]
+
+display:
+  fit_mode: "fit"              # fit | fill | ken_burns
+  background: "blur"           # black | blur
+  transition: "fade"           # fade | slide | none
+  transition_duration_secs: 1.5
+  interval_secs: 30
+  shuffle: true
+  show_info_overlay: false
+
+schedule:
+  night_mode:
+    enabled: true
+    start: "21:00"
+    end: "06:00"
+    brightness: 0.3
+  power_save:
+    enabled: true
+    start: "23:00"
+    end: "07:00"
+
+history:
+  enabled: true
+  max_entries: 500
+  allow_rating_changes: true
+
+playlists:
+  all:
+    name: "All Photos"
+    filter: {}
+
+  favorites:
+    name: "Favorites (4+ stars)"
+    filter:
+      rating: { gte: 4 }
+    fit_mode: "ken_burns"
+    interval_secs: 15          # per-playlist overrides
+    # shuffle: false
+    # exclude:
+    #   people: ["SomePerson"]
+
+  family:
+    name: "Family Photos"
+    filter:
+      people: { any: ["Alice", "Bob", "Charlie"] }
+
+  vacation:
+    name: "Vacation"
+    filter:
+      keywords: { any: ["vacation", "travel"] }
+
+  best-of-kids:
+    name: "Best Kid Photos"
+    filter:
+      rating: { gte: 3 }
+      people: { any: ["Alice", "Bob"] }

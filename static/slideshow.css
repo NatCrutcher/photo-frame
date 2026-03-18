@@ -6,6 +6,7 @@ html, body {
   background: #000;
   cursor: none;
 }
+body.controls-visible { cursor: default; }
 
 #frame {
   position: relative;
@@ -15,7 +16,7 @@ html, body {
 /* Blurred background layer */
 #bg-layer {
   position: absolute;
-  inset: -40px;  /* bleed past edges so blur doesn't show black border */
+  inset: -40px;
   background-size: cover;
   background-position: center;
   filter: blur(30px) brightness(0.4);
@@ -41,13 +42,13 @@ html, body {
 .photo.fit-fill      { object-fit: cover; }
 .photo.fit-ken_burns { object-fit: cover; }
 
-/* Ken Burns animation */
+/* Ken Burns animation — CSS custom properties set per-photo from JS */
 @keyframes kenburns {
-  0%   { transform: scale(1.0) translate(0, 0); }
-  100% { transform: scale(1.15) translate(-1.5%, -1%); }
+  0%   { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(var(--kb-scale)) translate(var(--kb-x), var(--kb-y)); }
 }
 .photo.ken-burns-active {
-  animation: kenburns 30s ease-in-out forwards;
+  animation: kenburns var(--kb-duration, 30s) linear forwards;
 }
 
 /* Slide transition */
@@ -78,6 +79,63 @@ html, body {
   font-size: 16px;
 }
 #info-overlay.hidden { display: none; }
+
+/* Controls overlay */
+#controls-overlay {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+#controls-overlay.hidden {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+#sl-playlist {
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #333;
+  color: #eee;
+  max-width: 200px;
+}
+
+#sl-buttons {
+  display: flex;
+  gap: 8px;
+}
+#sl-buttons button {
+  width: 48px; height: 36px;
+  font-size: 18px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #333;
+  color: #eee;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#sl-buttons button:hover { background: #555; }
+
+/* Small trigger area always visible in bottom-right corner */
+#controls-trigger {
+  position: fixed;
+  bottom: 0; right: 0;
+  width: 48px; height: 48px;
+  z-index: 49;
+  cursor: pointer;
+}
 
 /* Power save overlay */
 #power-save-overlay {

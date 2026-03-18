@@ -93,6 +93,8 @@ def index_photos(config):
     for i in range(0, len(paths), BATCH_SIZE):
         batch = paths[i:i + BATCH_SIZE]
         all_metadata.extend(read_metadata_batch(batch))
+        done = min(i + BATCH_SIZE, len(paths))
+        print(f"  Read metadata: {done}/{len(paths)}")
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -138,6 +140,12 @@ def index_photos(config):
         deleted = existing - indexed_paths
         if deleted:
             print(f"Removing {len(deleted)} deleted photos from index")
+            placeholders = ",".join("?" * len(deleted))
+            conn.execute(
+                f"DELETE FROM history WHERE photo_id IN "
+                f"(SELECT id FROM photos WHERE path IN ({placeholders}))",
+                list(deleted),
+            )
             conn.executemany("DELETE FROM photos WHERE path = ?", [(p,) for p in deleted])
 
     print(f"Indexed {len(indexed_paths)} photos")
