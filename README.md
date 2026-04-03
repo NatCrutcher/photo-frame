@@ -51,7 +51,7 @@ pip install -r requirements.txt
    python3 app.py
    ```
 
-4. **Open the slideshow** at `http://localhost:5000` and the **remote control** at `http://localhost:5000/remote` (from your phone on the same network).
+4. **Open the slideshow** at `http://localhost:5000` and the **remote control** at`http://localhost:5000/remote` (from your phone on the same network).
 
 ## Configuration
 

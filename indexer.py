@@ -39,6 +39,7 @@ def read_metadata_batch(paths):
             "exiftool", "-json",
             "-Rating", "-Subject", "-RegionName",
             "-ImageWidth", "-ImageHeight", "-FileModifyDate",
+            "-DateTimeOriginal", "-CreateDate",
         ] + paths,
         capture_output=True, text=True,
     )
@@ -61,6 +62,21 @@ def parse_list_field(value):
     if isinstance(value, list):
         return value
     return [value]
+
+
+def resolve_date_taken(meta):
+    """Extract best available capture date, normalized to ISO format."""
+    raw = (
+        meta.get("DateTimeOriginal")
+        or meta.get("CreateDate")
+        or meta.get("FileModifyDate")
+    )
+    if not raw:
+        return None
+    # exiftool format: "YYYY:MM:DD HH:MM:SS" (possibly with timezone suffix)
+    date_part = raw[:10].replace(":", "-")
+    time_part = raw[11:19] if len(raw) >= 19 else "00:00:00"
+    return f"{date_part} {time_part}"
 
 
 def compute_orientation(width, height):
@@ -115,11 +131,12 @@ def index_photos(config):
             height = meta.get("ImageHeight")
             orientation = compute_orientation(width, height)
             file_modified = meta.get("FileModifyDate")
+            date_taken = resolve_date_taken(meta)
 
             conn.execute("""
                 INSERT INTO photos (path, rating, keywords, people, width, height,
-                                    orientation, file_modified_at, indexed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    orientation, file_modified_at, date_taken, indexed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(path) DO UPDATE SET
                     rating = excluded.rating,
                     keywords = excluded.keywords,
@@ -128,11 +145,12 @@ def index_photos(config):
                     height = excluded.height,
                     orientation = excluded.orientation,
                     file_modified_at = excluded.file_modified_at,
+                    date_taken = excluded.date_taken,
                     indexed_at = excluded.indexed_at
             """, (
                 os.path.abspath(path), rating,
                 json.dumps(keywords), json.dumps(people),
-                width, height, orientation, file_modified, now,
+                width, height, orientation, file_modified, date_taken, now,
             ))
 
         # Remove photos that no longer exist on disk

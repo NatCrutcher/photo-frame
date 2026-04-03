@@ -1,24 +1,31 @@
 nas:
-  mount_point: "./test_photos"
+  mount_point: "/mnt/nat_images"
+
+default_playlist: "favorites"
+
+# Global excludes — photos matching these are hidden from all playlists
+exclude:
+  people: ["Rhonda", "Darren"]
+#   keywords: ["some-keyword"]
 
 display:
-  fit_mode: "fit"
+  fit_mode: "ken_burns"
   background: "blur"
   transition: "fade"
-  transition_duration_secs: 1.5
-  interval_secs: 30
+  transition_duration_secs: 1.0
+  interval_secs: 7
   shuffle: true
-  show_info_overlay: false
+  show_info_overlay: true
 
 schedule:
   night_mode:
     enabled: true
-    start: "21:00"
+    start: "23:00"
     end: "06:00"
     brightness: 0.3
   power_save:
     enabled: true
-    start: "23:00"
+    start: "24:00"
     end: "07:00"
 
 history:
@@ -35,12 +42,16 @@ playlists:
     name: "Favorites (4+ stars)"
     filter:
       rating: { gte: 4 }
-    fit_mode: "ken_burns"
+    fit_mode: "fit"
+    interval_secs: 7          # per-playlist override
+    # shuffle: false           # per-playlist override
+    # exclude:                 # per-playlist exclude
+    #   people: ["SomePerson"]
 
   family:
     name: "Family Photos"
     filter:
-      people: { any: ["Alice", "Bob", "Charlie"] }
+      people: { any: ["Vivien", "Croix", "Nathaniel"] }
 
   vacation:
     name: "Vacation"
@@ -51,4 +62,4 @@ playlists:
     name: "Best Kid Photos"
     filter:
       rating: { gte: 3 }
-      people: { any: ["Alice", "Bob"] }
+      people: { any: ["Vivien", "Croix"] }

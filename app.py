@@ -126,6 +126,8 @@ def _photo_response(photo):
     p["url"] = _photo_url(photo)
     mount = os.path.abspath(config["nas"]["mount_point"])
     p["relative_path"] = os.path.relpath(photo["path"], mount)
+    if p.get("date_taken"):
+        p["date_taken"] = p["date_taken"][:10]  # YYYY-MM-DD only
     return p
 
 

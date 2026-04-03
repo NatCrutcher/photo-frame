@@ -55,6 +55,15 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_history_played_at ON history(played_at);
         """)
 
+        # Migration: add date_taken column
+        try:
+            conn.execute("ALTER TABLE photos ADD COLUMN date_taken TEXT")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_photos_date_taken ON photos(date_taken)"
+        )
+
 
 def row_to_dict(row):
     if row is None:

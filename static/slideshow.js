@@ -56,18 +56,21 @@
   });
 
   slNext.addEventListener("click", function () {
+    showControls();
     post("/api/control/next").then(function (d) {
-      if (d.photo) showPhoto(d.photo.url, d.photo);
+      if (d.photo) showPhoto(d.photo.url, d.photo, true);
     });
   });
 
   slPrev.addEventListener("click", function () {
+    showControls();
     post("/api/control/prev").then(function (d) {
-      if (d.photo) showPhoto(d.photo.url, d.photo);
+      if (d.photo) showPhoto(d.photo.url, d.photo, true);
     });
   });
 
   slPause.addEventListener("click", function () {
+    showControls();
     post("/api/control/pause").then(function (d) {
       paused = d.paused;
       updatePauseButton();
@@ -133,7 +136,7 @@
     photoB.style.transitionDuration = dur;
   }
 
-  function showPhoto(url, photo) {
+  function showPhoto(url, photo, skipTransition) {
     if (!url) return;
     currentPhotoUrl = url;
 
@@ -151,11 +154,15 @@
       }
 
       // Transition
-      var transition = display.transition || "fade";
-      if (transition === "slide") {
-        doSlideTransition();
+      if (skipTransition) {
+        doInstantTransition();
       } else {
-        doFadeTransition();
+        var transition = display.transition || "fade";
+        if (transition === "slide") {
+          doSlideTransition();
+        } else {
+          doFadeTransition();
+        }
       }
 
       // Start Ken Burns after the image is visible
@@ -169,6 +176,20 @@
       }
     };
     preload.src = url;
+  }
+
+  function doInstantTransition() {
+    activeImg.style.transition = "none";
+    nextImg.style.transition = "none";
+    activeImg.classList.remove("active");
+    nextImg.classList.add("active");
+    var tmp = activeImg;
+    activeImg = nextImg;
+    nextImg = tmp;
+    // Force layout so the instant swap is painted before restoring transitions
+    void activeImg.offsetHeight;
+    activeImg.style.transition = "";
+    nextImg.style.transition = "";
   }
 
   function doFadeTransition() {
@@ -199,10 +220,10 @@
 
   function showInfo(photo) {
     var parts = [];
-    if (photo.relative_path) parts.push(photo.relative_path);
     if (photo.rating) parts.push("\u2605".repeat(photo.rating));
+    if (photo.date_taken) parts.push(photo.date_taken);
     if (photo.people && photo.people.length) parts.push(photo.people.join(", "));
-    if (photo.keywords && photo.keywords.length) parts.push(photo.keywords.join(", "));
+    if (photo.relative_path) parts.push(photo.relative_path);
     if (parts.length) {
       infoText.textContent = parts.join("  \u00b7  ");
       infoOverlay.classList.remove("hidden");

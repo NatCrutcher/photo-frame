@@ -53,6 +53,15 @@ def build_query(playlist_filter):
                 conditions.append("keywords LIKE ?")
                 params.append(f'%"{kw}"%')
 
+    if "date_taken" in playlist_filter:
+        df = playlist_filter["date_taken"]
+        if "gte" in df:
+            conditions.append("date_taken >= ?")
+            params.append(df["gte"])
+        if "lte" in df:
+            conditions.append("date_taken <= ?")
+            params.append(df["lte"])
+
     if "orientation" in playlist_filter:
         conditions.append("orientation = ?")
         params.append(playlist_filter["orientation"])
