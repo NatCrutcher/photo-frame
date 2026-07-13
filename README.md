@@ -3,9 +3,9 @@
 A DIY digital picture frame that displays photos from a Synology NAS on a Raspberry Pi (or any Linux machine). Photos are managed in Adobe Lightroom Classic -- the frame reads their embedded metadata (ratings, keywords, people tags) and uses it to drive configurable playlists. A phone-friendly remote control lets you switch playlists, skip photos, and change ratings from the couch.
 
 ```
-Lightroom Classic --> Export JPEG w/ XMP --> Synology NAS (SMB share)
+Lightroom Classic --> Export JPEG w/ XMP --> Synology NAS (SMB or NFS share)
                                                   |
-                                             SMB mount
+                                             SMB/NFS mount
                                                   |
                                          Raspberry Pi / Linux
                                            indexer (cron)
@@ -145,6 +145,10 @@ Add to `/etc/fstab`:
 
 ```
 nas-ip:/volume1/photos /mnt/photos nfs rw,soft,intr,noatime 0 0
+```
+Or
+```
+192.168.1.43:/volume1/nat_images  /mnt/nat_images  nfs4  rw,soft,intr,rsize=131072,noatime  0  0
 ```
 
 Then mount:

@@ -129,6 +129,10 @@ The slideshow checks the schedule every 60 seconds.
 sudo apt install libimage-exiftool-perl chromium-browser unclutter
 ```
 
+- **unclutter** - Hides the mouse cursor after some inactivity
+- **chromium-browser** - TBD: why do we need this?
+- **libimage-exiftool-perl** - Read/write image file EXIF information
+
 ### Web App Service
 
 Create `/etc/systemd/system/photo-frame.service`:
