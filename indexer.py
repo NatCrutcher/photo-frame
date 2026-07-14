@@ -37,10 +37,15 @@ def load_config(path="config.yaml"):
         return yaml.safe_load(f)
 
 
+# Directory names to skip entirely (Synology recycle bin).
+EXCLUDED_DIRS = {"#recycle"}
+
+
 def scan_photos(directory):
-    """Return all JPEG file paths under directory."""
+    """Return all JPEG file paths under directory, skipping EXCLUDED_DIRS."""
     paths = []
-    for root, _dirs, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
         for name in sorted(files):
             if name.lower().endswith((".jpg", ".jpeg")):
                 paths.append(os.path.join(root, name))
