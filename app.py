@@ -17,7 +17,7 @@ from flask import (
 )
 from PIL import Image, ImageOps
 
-from db import get_db, init_db, row_to_dict
+from db import get_db, init_db
 from playlist import get_playlist_photos, load_playlists
 
 app = Flask(__name__)
@@ -372,7 +372,7 @@ def _enforce_cache_cap():
         return
     target = int(CACHE_MAX_BYTES * 0.9)
     entries.sort()  # oldest mtime first
-    for _mtime, size, path in entries:
+    for _, size, path in entries:
         if total <= target:
             break
         try:
