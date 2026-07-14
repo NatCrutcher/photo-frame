@@ -7,6 +7,7 @@ default_playlist: "all"
 # exclude:
 #   people: ["PersonToHide"]
 #   keywords: ["keyword-to-hide"]
+#   ratings: [1, 2]        # hide 1- and 2-star culls; unrated photos are kept
 
 display:
   fit_mode: "fit"              # fit | fill | ken_burns
@@ -56,8 +57,9 @@ playlists:
     fit_mode: "ken_burns"
     interval_secs: 15          # per-playlist overrides
     # shuffle: false
-    # exclude:
+    # exclude:                   # same keys as the global exclude, playlist-scoped
     #   people: ["SomePerson"]
+    #   ratings: [1, 2]
 
   family:
     name: "Family Photos"
@@ -81,9 +83,24 @@ playlists:
       date_taken:
         gte: "2024-01-01"
 
+  scotland:
+    name: "Scotland Trip"
+    filter:
+      # Folders are relative to nas.mount_point and match recursively
+      # (subfolders included). List one parent or several sibling folders.
+      folders:
+        - "2024/Scotland"
+        # - "2024/Scotland/Edinburgh"
+        # - "2024/Scotland/Isle-of-Skye"
+
+  # Date shortcuts: a bound may be a full date "YYYY-MM-DD", a month "YYYY-MM",
+  # or a year "YYYY". gte/lte are inclusive of the whole period.
   # year-2023:
   #   name: "2023 Photos"
   #   filter:
-  #     date_taken:
-  #       gte: "2023-01-01"
-  #       lte: "2023-12-31"
+  #     date_taken: { gte: "2023", lte: "2023" }   # or: between: ["2023", "2023"]
+  #
+  # summer-2023:
+  #   name: "Summer 2023"
+  #   filter:
+  #     date_taken: { between: ["2023-06", "2023-08"] }

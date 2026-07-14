@@ -72,7 +72,7 @@ display:
 
 ### Playlists
 
-Each playlist defines a `filter` that selects photos from the index. Filters can match on `rating`, `people`, `keywords`, and `orientation`. Playlists can also override display settings like `fit_mode`.
+Each playlist defines a `filter` that selects photos from the index. Filters can match on `rating`, `people`, `keywords`, `orientation`, `folders`, and `date_taken`. Playlists can also override display settings like `fit_mode`.
 
 ```yaml
 playlists:
@@ -91,6 +91,12 @@ playlists:
     name: "Vacation"
     filter:
       keywords: { any: ["vacation", "travel"] }
+
+  scotland:
+    name: "Scotland Trip"
+    filter:
+      folders: ["2024/Scotland"]
+      date_taken: { between: ["2024-05", "2024-06"] }
 ```
 
 **Filter operators:**
@@ -98,8 +104,14 @@ playlists:
 - `people`: `any` (match if any listed person appears), `all` (must include every listed person)
 - `keywords`: `any`, `all`
 - `orientation`: `"landscape"`, `"portrait"`, `"square"`
+- `folders`: list of folders **relative to `nas.mount_point`**; matches recursively (a folder includes all its subfolders). Multiple folders are OR'd.
+- `date_taken`: `gte`, `lte`, and `between: [start, end]`. Bounds are inclusive and accept a full date `"YYYY-MM-DD"`, a month `"YYYY-MM"`, or a year `"YYYY"` (e.g. `lte: "2023"` covers all of 2023).
 
 Multiple filters in one playlist are combined with AND.
+
+**Excludes.** An `exclude` block hides matching photos. It can be set globally (top level of `config.yaml`, applies to every playlist) or per-playlist. Keys:
+- `people`, `keywords`: hide photos tagged with any of these.
+- `ratings`: hide photos with any of these star ratings, e.g. `ratings: [1, 2]`. **Unrated photos are kept** — only photos with an explicit rating in the list are hidden. (Ratings map to XMP: `-1` is Lightroom's "Rejected" flag, `0` an explicit zero, `1`–`5` stars; unrated photos have no rating at all.)
 
 ### Schedule
 

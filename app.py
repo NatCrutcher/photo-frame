@@ -73,7 +73,8 @@ class FrameState:
         global_exclude = self.config.get("exclude")
         self.active_playlist_id = playlist_id
         self.photos = get_playlist_photos(
-            playlist_config, shuffle=shuffle, global_exclude=global_exclude)
+            playlist_config, shuffle=shuffle, global_exclude=global_exclude,
+            mount_point=self.config["nas"]["mount_point"])
         self.index = -1
         self.advance()
         return True
