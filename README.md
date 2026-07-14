@@ -8,7 +8,7 @@ Lightroom Classic --> Export JPEG w/ XMP --> Synology NAS (SMB or NFS share)
                                              SMB/NFS mount
                                                   |
                                          Raspberry Pi / Linux
-                                           indexer (cron)
+                                       indexer (nightly @ 3am)
                                                 |
                                              SQLite
                                                 |
@@ -210,9 +210,15 @@ When exporting from Lightroom Classic, enable **"Include All Metadata"** so that
 
 When you change a rating from the remote control, the app writes it back to the JPEG via exiftool. Lightroom can pick up the change with **Metadata > Read Metadata from File**.
 
+The indexer runs nightly at 3am (see [USAGE.md](USAGE.md)), and re-indexing is safe
+while the frame is running: the app tolerates concurrent database writes, the
+slideshow skips any photo that has since been deleted off the NAS instead of
+showing a broken image, and the indexer signals the app to reload the freshly
+indexed set on completion. You can also re-index by hand any time during the day.
+
 ## Raspberry Pi Deployment
 
-See [USAGE.md](USAGE.md) for cron setup, systemd services, and Chromium kiosk configuration.
+See [USAGE.md](USAGE.md) for nightly indexing, systemd services, and Chromium kiosk configuration.
 
 ## API
 
@@ -226,6 +232,7 @@ See [USAGE.md](USAGE.md) for cron setup, systemd services, and Chromium kiosk co
 | `/api/control/prev` | POST | Go to previous photo |
 | `/api/control/pause` | POST | Toggle pause |
 | `/api/control/playlist/{id}` | POST | Switch playlist |
+| `/api/control/reload` | POST | Rebuild the active playlist from the DB (call after re-indexing) |
 | `/api/history` | GET | Recent play history |
 | `/api/photos/{id}/rating` | PUT | Update photo rating (JSON body: `{"rating": N}`) |
 | `/api/schedule` | GET | Current night mode / power save state |

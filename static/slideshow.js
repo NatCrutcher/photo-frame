@@ -24,6 +24,7 @@
   var advanceTimer = null;
   var currentPhotoUrl = null;
   var controlsHideTimer = null;
+  var failCount = 0;
 
   /* ---- API helpers ---- */
 
@@ -146,6 +147,7 @@
 
     function reveal() {
       if (currentPhotoUrl !== url) return;  // superseded by a newer request
+      failCount = 0;                        // a good load clears the skip streak
       nextImg.src = url;
       applyFitClass(nextImg);
 
@@ -181,12 +183,24 @@
       }
     }
 
+    // A photo may have been deleted off the NAS since the playlist loaded (a 404
+    // from /display) or otherwise fail to decode. Skip it by advancing, rather
+    // than leaving the frame stuck on the previous image (or hung while paused).
+    function onLoadFailed() {
+      if (currentPhotoUrl !== url) return;  // superseded already
+      currentPhotoUrl = null;               // clear guard so a retry isn't suppressed
+      failCount++;
+      if (failCount >= 5) { failCount = 0; return; }  // let the timer resume
+      advance();                            // skip to the next photo
+    }
+
     // Decode off the main thread first so the decode cost doesn't land on the
     // frame that starts the transition. Fall back to onload where unsupported.
     if (preload.decode) {
-      preload.decode().then(reveal).catch(function () {});
+      preload.decode().then(reveal).catch(onLoadFailed);
     } else {
       preload.onload = reveal;
+      preload.onerror = onLoadFailed;
     }
   }
 

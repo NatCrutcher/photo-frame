@@ -4,9 +4,11 @@
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import yaml
@@ -19,6 +21,21 @@ from db import get_db, init_db, row_to_dict
 from playlist import get_playlist_photos, load_playlists
 
 app = Flask(__name__)
+
+
+@contextmanager
+def _safe_write(action):
+    """Run a DB write, swallowing lock/FK errors so a mid-index delete or lock
+    timeout never crashes the slideshow."""
+    try:
+        with get_db() as conn:
+            yield conn
+    except sqlite3.Error as e:
+        app.logger.warning("skipped %s: %s", action, e)
+
+
+def _photo_exists(photo):
+    return photo is not None and os.path.exists(photo["path"])
 
 
 # ---------------------------------------------------------------------------
@@ -62,23 +79,26 @@ class FrameState:
         return True
 
     def advance(self):
+        return self._step(1)
+
+    def go_prev(self):
+        return self._step(-1)
+
+    def _step(self, delta):
+        """Move by delta, skipping photos whose file is gone from disk."""
         if not self.photos:
             self.current_photo = None
             return None
-        self.index = (self.index + 1) % len(self.photos)
-        self.current_photo = self.photos[self.index]
-        self.last_change = time.time()
-        self._record_history()
-        return self.current_photo
-
-    def go_prev(self):
-        if not self.photos:
-            return None
-        self.index = (self.index - 1) % len(self.photos)
-        self.current_photo = self.photos[self.index]
-        self.last_change = time.time()
-        self._record_history()
-        return self.current_photo
+        for _ in range(len(self.photos)):          # bounded: at most one full pass
+            self.index = (self.index + delta) % len(self.photos)
+            candidate = self.photos[self.index]
+            if _photo_exists(candidate):
+                self.current_photo = candidate
+                self.last_change = time.time()
+                self._record_history()
+                return candidate
+        self.current_photo = None                  # every file is gone → show nothing
+        return None
 
     def _record_history(self):
         if not self.current_photo:
@@ -88,7 +108,7 @@ class FrameState:
             return
 
         now = datetime.now(timezone.utc).isoformat()
-        with get_db() as conn:
+        with _safe_write("history record") as conn:
             conn.execute(
                 "INSERT INTO history (photo_id, playlist, played_at) VALUES (?, ?, ?)",
                 (self.current_photo["id"], self.active_playlist_id, now),
@@ -237,6 +257,20 @@ def api_switch_playlist(playlist_id):
         })
 
 
+@app.route("/api/control/reload", methods=["POST"])
+def api_reload():
+    """Rebuild the active playlist from the DB — call after a reindex."""
+    with state.lock:
+        if not state.active_playlist_id:
+            return jsonify({"reloaded": False})
+        state.load_playlist(state.active_playlist_id)
+        return jsonify({
+            "reloaded": True,
+            "count": len(state.photos),
+            "photo": _photo_response(state.current_photo),
+        })
+
+
 @app.route("/api/history")
 def api_history():
     limit = request.args.get("limit", 50, type=int)
@@ -268,12 +302,16 @@ def api_update_rating(photo_id):
     if rating is not None and (not isinstance(rating, int) or rating < 0 or rating > 5):
         abort(400, description="Rating must be an integer 0-5")
 
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM photos WHERE id = ?", (photo_id,)).fetchone()
-        if not row:
-            abort(404, description="Photo not found")
-        conn.execute("UPDATE photos SET rating = ? WHERE id = ?", (rating, photo_id))
-        path = row["path"]
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT * FROM photos WHERE id = ?", (photo_id,)).fetchone()
+            if not row:
+                abort(404, description="Photo not found")
+            conn.execute("UPDATE photos SET rating = ? WHERE id = ?", (rating, photo_id))
+            path = row["path"]
+    except sqlite3.Error as e:
+        app.logger.warning("rating update failed for photo %s: %s", photo_id, e)
+        abort(503, description="Database busy, try again")
 
     # Write rating back to JPEG via exiftool
     try:

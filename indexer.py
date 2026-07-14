@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime, timezone
 
 import yaml
@@ -12,6 +13,23 @@ import yaml
 from db import get_db, init_db
 
 BATCH_SIZE = 100
+DEFAULT_RELOAD_URL = "http://localhost:5000/api/control/reload"
+
+
+def notify_app_reload(config):
+    """Best-effort: tell a running frame app to reload the active playlist.
+
+    Safe to call whether or not the app is up — a down app is not an error, so
+    manual daytime re-indexes refresh the frame within a few seconds just like
+    the nightly timer does.
+    """
+    url = config.get("app", {}).get("reload_url", DEFAULT_RELOAD_URL)
+    try:
+        req = urllib.request.Request(url, data=b"", method="POST")
+        urllib.request.urlopen(req, timeout=5)
+        print("Signaled app to reload")
+    except OSError:
+        pass  # app not running or unreachable — nothing to refresh
 
 
 def load_config(path="config.yaml"):
@@ -173,3 +191,4 @@ if __name__ == "__main__":
     config_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
     config = load_config(config_path)
     index_photos(config)
+    notify_app_reload(config)

@@ -32,56 +32,58 @@ python3 indexer.py /path/to/config.yaml   # explicit config path
 
 The indexer is idempotent -- run it as often as you like. It upserts photos that changed and removes photos that were deleted from disk.
 
-### Automatic Indexing with a Systemd Timer
+It is **safe to run the indexer while the frame app is running**. The app opens
+the database in WAL mode with a busy timeout and tolerates lock/foreign-key
+contention gracefully, and the slideshow skips any photo whose file has since been
+deleted from the NAS. On completion the indexer signals the app to reload (see
+below), so freshly indexed changes appear within a few seconds without a restart.
 
-Create `/etc/systemd/system/photo-indexer.service`:
+### Nightly Indexing with a Systemd Timer
 
-```ini
-[Unit]
-Description=Photo Frame Indexer
-After=network.target
-
-[Service]
-Type=oneshot
-User=pi
-WorkingDirectory=/home/pi/photo-frame
-ExecStart=/home/pi/photo-frame/venv/bin/python indexer.py
-```
-
-Create `/etc/systemd/system/photo-indexer.timer`:
-
-```ini
-[Unit]
-Description=Run photo indexer every 30 minutes
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=30min
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable and start the timer:
+The repo ships ready-to-use units in `deploy/`: `photo-index.service` (a oneshot
+that runs the indexer) and `photo-index.timer` (fires nightly at 03:00). Copy both
+to `/etc/systemd/system/`, adjusting `User` and paths for your install, then:
 
 ```sh
-sudo systemctl enable --now photo-indexer.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now photo-index.timer
 ```
 
 Check status and logs:
 
 ```sh
-systemctl status photo-indexer.timer    # next run time
-systemctl list-timers                   # all active timers
-journalctl -u photo-indexer             # indexer output
+systemctl list-timers                 # confirm photo-index.timer's next run (03:00)
+systemctl status photo-index.timer
+journalctl -u photo-index             # indexer output
 ```
+
+The app is intentionally **not** stopped during indexing; the concurrency safety
+above makes that unnecessary, and the display's night-mode/power-save windows
+already blank the screen overnight. When indexing finishes the indexer itself
+best-effort POSTs `/api/control/reload` to the running app (a down app is simply
+ignored), so no extra reload step is needed.
+
+### Re-indexing During the Day
+
+If you add photos or change tags/ratings in Lightroom mid-day, just re-run the
+indexer by hand -- no need to wait for 03:00 or restart the app:
+
+```sh
+python3 indexer.py config.yaml            # or: sudo systemctl start photo-index.service
+```
+
+Either form refreshes the frame to the newly indexed set within ~3 seconds: the
+indexer signals the app on completion, and the slideshow's now-playing poll picks
+up the new photo. (By default it signals `http://localhost:5000`; override with an
+`app: { reload_url: ... }` block in `config.yaml` if the app runs elsewhere.)
 
 ### Alternative: Cron
 
-If you prefer cron:
+If you prefer cron, run nightly at 03:00 (the indexer signals the app itself, so
+no trailing curl is needed):
 
 ```
-*/30 * * * * cd /home/pi/photo-frame && /home/pi/photo-frame/venv/bin/python indexer.py >> /tmp/indexer.log 2>&1
+0 3 * * * cd /home/pi/photo-frame && /home/pi/photo-frame/venv/bin/python indexer.py >> /tmp/indexer.log 2>&1
 ```
 
 Adjust paths to match your setup.

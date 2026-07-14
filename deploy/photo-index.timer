@@ -1,0 +1,13 @@
+# Nightly photo reindex at 3am. Copy to /etc/systemd/system/, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now photo-index.timer
+#   systemctl list-timers          # verify next run
+[Unit]
+Description=Nightly photo reindex at 3am
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

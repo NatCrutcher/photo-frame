@@ -35,6 +35,12 @@
   function updateNowPlaying(photo) {
     if (!photo) return;
     currentPhoto = photo;
+    // Hide (rather than show a broken-image icon) if the photo was deleted off
+    // the NAS; a later good photo resets visibility on the next call.
+    currentPhotoImg.style.visibility = "";
+    currentPhotoImg.onerror = function () {
+      currentPhotoImg.style.visibility = "hidden";
+    };
     currentPhotoImg.src = photo.url;
 
     if (photo.rating) {
@@ -141,6 +147,7 @@
     historyStrip.innerHTML = "";
     items.forEach(function (item) {
       const img = document.createElement("img");
+      img.onerror = function () { img.style.display = "none"; };
       img.src = item.url;
       img.alt = "";
       img.addEventListener("click", function () {

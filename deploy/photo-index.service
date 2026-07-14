@@ -1,0 +1,20 @@
+# Photo Frame NAS reindex (oneshot). Runs indexer.py once, then signals the
+# running app to reload the active playlist. Copy to /etc/systemd/system/ and
+# adjust the User and paths for your install. Driven by photo-index.timer:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now photo-index.timer
+#
+# The app is intentionally left running during indexing — WAL + busy_timeout and
+# graceful skip/error handling make concurrent indexing safe. On completion the
+# indexer itself best-effort signals the running app to reload (POST
+# /api/control/reload), so no ExecStartPost curl is needed here.
+[Unit]
+Description=Photo Frame NAS reindex
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/photo-frame
+ExecStart=/home/pi/photo-frame/venv/bin/python indexer.py config.yaml
