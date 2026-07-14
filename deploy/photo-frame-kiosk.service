@@ -1,0 +1,40 @@
+# Photo Frame kiosk — Chromium fullscreen on a Wayland session (the default on
+# Raspberry Pi OS Bookworm/Trixie for a Pi 5). Copy to /etc/systemd/system/,
+# adjust User/UID and the Wayland socket name, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now photo-frame-kiosk
+#
+# For an X11 session instead, see the "X11" notes in USAGE.md (use DISPLAY=:0,
+# the chromium-browser binary, unclutter, and drop the --ozone-platform flags).
+[Unit]
+Description=Photo Frame Kiosk (Chromium, Wayland)
+After=photo-frame.service graphical.target
+Wants=photo-frame.service
+
+[Service]
+Type=simple
+User=pi
+
+# The kiosk must connect to the running compositor. XDG_RUNTIME_DIR uses the
+# user's UID (1000 for the first user); check the socket name with:
+#   ls /run/user/1000/wayland-*        (often wayland-0 or wayland-1)
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_SESSION_TYPE=wayland
+
+ExecStart=/usr/bin/chromium \
+  --kiosk --noerrdialogs --disable-infobars \
+  --disable-session-crashed-bubble --disable-component-update \
+  --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl \
+  --ozone-platform=wayland --enable-features=UseOzonePlatform \
+  http://localhost:5000
+
+# Restart=always keeps the frame showing photos. It also means closing the
+# browser (Alt+F4) just relaunches it after RestartSec — to exit and stay out,
+# `sudo systemctl stop photo-frame-kiosk`. For development, Restart=on-failure
+# lets a clean Alt+F4 exit leave the kiosk closed. See USAGE.md.
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

@@ -8,6 +8,7 @@
   var infoOverlay = document.getElementById("info-overlay");
   var infoText = document.getElementById("info-text");
   var powerOverlay = document.getElementById("power-save-overlay");
+  var dimOverlay = document.getElementById("dim-overlay");
   var controlsOverlay = document.getElementById("controls-overlay");
   var controlsTrigger = document.getElementById("controls-trigger");
   var slPlaylist = document.getElementById("sl-playlist");
@@ -141,13 +142,17 @@
     currentPhotoUrl = url;
 
     var preload = new Image();
-    preload.onload = function () {
+    preload.src = url;
+
+    function reveal() {
+      if (currentPhotoUrl !== url) return;  // superseded by a newer request
       nextImg.src = url;
       applyFitClass(nextImg);
 
-      // Background
+      // Background — use the tiny ?bg=1 thumbnail; blurring a small image
+      // scaled up to cover the screen is far cheaper than blurring a 4K surface.
       if (display.background === "blur") {
-        bgLayer.style.backgroundImage = 'url("' + url + '")';
+        bgLayer.style.backgroundImage = 'url("' + url + '?bg=1")';
         bgLayer.classList.add("visible");
       } else {
         bgLayer.classList.remove("visible");
@@ -174,8 +179,15 @@
       } else {
         infoOverlay.classList.add("hidden");
       }
-    };
-    preload.src = url;
+    }
+
+    // Decode off the main thread first so the decode cost doesn't land on the
+    // frame that starts the transition. Fall back to onload where unsupported.
+    if (preload.decode) {
+      preload.decode().then(reveal).catch(function () {});
+    } else {
+      preload.onload = reveal;
+    }
   }
 
   function doInstantTransition() {
@@ -286,9 +298,10 @@
         powerOverlay.classList.add("hidden");
       }
       if (sched.night_mode && !sched.power_save) {
-        document.body.style.filter = "brightness(" + sched.night_brightness + ")";
+        // Dim via a black overlay's opacity rather than a body-wide filter.
+        dimOverlay.style.opacity = 1 - sched.night_brightness;
       } else if (!sched.power_save) {
-        document.body.style.filter = "";
+        dimOverlay.style.opacity = 0;
       }
     });
   }

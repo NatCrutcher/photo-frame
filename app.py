@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Digital picture frame web application."""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -12,6 +13,7 @@ import yaml
 from flask import (
     Flask, abort, jsonify, render_template, request, send_from_directory,
 )
+from PIL import Image, ImageOps
 
 from db import get_db, init_db, row_to_dict
 from playlist import get_playlist_photos, load_playlists
@@ -105,6 +107,19 @@ def _load_config(path="config.yaml"):
 
 
 config = _load_config()
+
+# Downscaled-image cache. Full-resolution originals are expensive for the Pi's
+# GPU to decode and composite at 4K, so the frame is served local, downscaled
+# derivatives instead. The cache lives on local disk and is bounded by max_bytes.
+_cache_cfg = config.get("cache") or {}
+CACHE_DIR = os.path.abspath(_cache_cfg.get("dir", "cache"))
+DISPLAY_CACHE_DIR = os.path.join(CACHE_DIR, "display")
+CACHE_MAX_EDGE = int(_cache_cfg.get("max_edge", 3840))
+CACHE_BG_EDGE = int(_cache_cfg.get("bg_edge", 320))
+CACHE_QUALITY = int(_cache_cfg.get("jpeg_quality", 85))
+CACHE_MAX_BYTES = int(_cache_cfg.get("max_bytes", 16_000_000_000))
+os.makedirs(DISPLAY_CACHE_DIR, exist_ok=True)
+
 init_db()
 state = FrameState(config)
 
@@ -113,19 +128,16 @@ state = FrameState(config)
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _photo_url(photo):
-    mount = config["nas"]["mount_point"]
-    rel = os.path.relpath(photo["path"], os.path.abspath(mount))
-    return f"/photos/{rel}"
-
-
 def _photo_response(photo):
     if photo is None:
         return None
     p = dict(photo)
-    p["url"] = _photo_url(photo)
     mount = os.path.abspath(config["nas"]["mount_point"])
-    p["relative_path"] = os.path.relpath(photo["path"], mount)
+    rel = os.path.relpath(photo["path"], mount)
+    p["relative_path"] = rel
+    # The frame loads the downscaled derivative; the blurred background reuses
+    # this URL with ?bg=1 (a much smaller thumbnail). See serve_display.
+    p["url"] = f"/display/{rel}"
     if p.get("date_taken"):
         p["date_taken"] = p["date_taken"][:10]  # YYYY-MM-DD only
     return p
@@ -279,13 +291,93 @@ def api_update_rating(photo_id):
     return jsonify({"id": photo_id, "rating": rating})
 
 
-@app.route("/photos/<path:filepath>")
-def serve_photo(filepath):
+def _safe_photo_path(filepath):
+    """Resolve a request path to an absolute file inside the NAS mount, or abort."""
     mount = os.path.abspath(config["nas"]["mount_point"])
     full = os.path.realpath(os.path.join(mount, filepath))
-    if not full.startswith(mount):
+    if full != mount and not full.startswith(mount + os.sep):
         abort(403)
+    return full
+
+
+def _cache_path(src, edge):
+    """Local cache filename for a derivative, invalidated by the source mtime."""
+    key = f"{src}:{os.path.getmtime(src)}:{edge}:{CACHE_QUALITY}"
+    digest = hashlib.sha1(key.encode()).hexdigest()
+    return os.path.join(DISPLAY_CACHE_DIR, f"{digest}.jpg")
+
+
+def _render_scaled(src, dst, edge):
+    """Decode src, downscale to fit edge x edge, and write a JPEG to dst."""
+    with Image.open(src) as im:
+        im.draft("RGB", (edge, edge))          # DCT-scaled decode = fast
+        im = ImageOps.exif_transpose(im)       # bake in EXIF orientation
+        im.thumbnail((edge, edge), Image.Resampling.LANCZOS)  # downscale-only; never enlarges
+        im.convert("RGB").save(
+            dst, "JPEG", quality=CACHE_QUALITY, optimize=True, progressive=True)
+
+
+def _enforce_cache_cap():
+    """Evict least-recently-used cache files until under 90% of the size cap."""
+    entries = []
+    total = 0
+    for name in os.listdir(DISPLAY_CACHE_DIR):
+        path = os.path.join(DISPLAY_CACHE_DIR, name)
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        entries.append((st.st_mtime, st.st_size, path))
+        total += st.st_size
+    if total <= CACHE_MAX_BYTES:
+        return
+    target = int(CACHE_MAX_BYTES * 0.9)
+    entries.sort()  # oldest mtime first
+    for _mtime, size, path in entries:
+        if total <= target:
+            break
+        try:
+            os.remove(path)
+            total -= size
+        except OSError:
+            pass
+
+
+def _serve_scaled(filepath, edge):
+    src = _safe_photo_path(filepath)
+    if not os.path.isfile(src):
+        abort(404)
+    # Downscale-only: images already within the target are streamed as-is, so the
+    # cache only ever holds the large-image tail. (Chromium honors EXIF orientation
+    # for <img>.) Background thumbnails (small edge) are always generated.
+    if edge >= CACHE_MAX_EDGE:
+        try:
+            with Image.open(src) as im:
+                already_small = max(im.size) <= edge
+        except OSError:
+            abort(404)
+        if already_small:
+            return send_from_directory(os.path.dirname(src), os.path.basename(src))
+    dst = _cache_path(src, edge)
+    if os.path.exists(dst):
+        os.utime(dst, None)  # touch for LRU: "recently shown" survives eviction
+    else:
+        _render_scaled(src, dst, edge)
+        _enforce_cache_cap()
+    return send_from_directory(DISPLAY_CACHE_DIR, os.path.basename(dst))
+
+
+@app.route("/photos/<path:filepath>")
+def serve_photo(filepath):
+    full = _safe_photo_path(filepath)
     return send_from_directory(os.path.dirname(full), os.path.basename(full))
+
+
+@app.route("/display/<path:filepath>")
+def serve_display(filepath):
+    """Downscaled derivative for the frame; ?bg=1 returns a tiny blur thumbnail."""
+    edge = CACHE_BG_EDGE if request.args.get("bg") else CACHE_MAX_EDGE
+    return _serve_scaled(filepath, edge)
 
 
 @app.route("/api/schedule")

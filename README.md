@@ -109,7 +109,7 @@ schedule:
     enabled: true
     start: "21:00"
     end: "06:00"
-    brightness: 0.3       # CSS brightness filter, 0.0-1.0
+    brightness: 0.3       # 0.0-1.0; dims via a translucent black overlay
   power_save:
     enabled: true
     start: "23:00"
@@ -124,6 +124,25 @@ history:
   max_entries: 500
   allow_rating_changes: true
 ```
+
+As each photo is displayed, the app records it (photo, playlist, and timestamp)
+in the local SQLite database, keeping the most recent `max_entries` plays and
+pruning older ones. This log drives the **"Recently Played"** strip in the phone
+remote (`/remote`): a row of thumbnails of the photos that just appeared on the
+frame, newest first. Tap a thumbnail to open that photo full-size — handy when a
+photo you liked scrolled past and you want a closer look or to see which one it
+was.
+
+History is a backward glance only; it does **not** rewind the slideshow itself.
+The remote's Prev/Next buttons step through the current playlist's order,
+independent of the history log, and ratings are applied to the *current* photo
+via the remote's star editor.
+
+- `enabled` — turn history recording on or off. When off, nothing is logged and
+  the Recently Played strip stays empty.
+- `max_entries` — how many recent plays to retain before old ones are pruned.
+- `allow_rating_changes` — reserved for future use; not currently enforced.
+  Rating changes from the remote always work regardless of this setting.
 
 ## NAS Mount
 
@@ -210,4 +229,5 @@ See [USAGE.md](USAGE.md) for cron setup, systemd services, and Chromium kiosk co
 | `/api/history` | GET | Recent play history |
 | `/api/photos/{id}/rating` | PUT | Update photo rating (JSON body: `{"rating": N}`) |
 | `/api/schedule` | GET | Current night mode / power save state |
-| `/photos/{path}` | GET | Serve photo file |
+| `/display/{path}` | GET | Serve a downscaled photo for the frame (`?bg=1` for the small blur-background thumbnail) |
+| `/photos/{path}` | GET | Serve the original full-resolution photo file |

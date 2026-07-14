@@ -19,7 +19,9 @@ body.controls-visible { cursor: default; }
   inset: -40px;
   background-size: cover;
   background-position: center;
-  filter: blur(30px) brightness(0.4);
+  /* Fed a tiny (~320px) thumbnail via ?bg=1, so a modest radius already reads
+     as a soft blur — far cheaper than blurring a full 4K surface. */
+  filter: blur(24px) brightness(0.4);
   z-index: 0;
   opacity: 0;
   transition: opacity 0.6s ease;
@@ -34,6 +36,11 @@ body.controls-visible { cursor: default; }
   z-index: 1;
   opacity: 0;
   transition: opacity 1.5s ease;
+  /* Promote each photo to its own GPU-composited layer so fades and Ken Burns
+     transform a cached texture instead of re-rasterizing the bitmap per frame. */
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .photo.active { opacity: 1; }
 
@@ -135,6 +142,19 @@ body.controls-visible { cursor: default; }
   width: 48px; height: 48px;
   z-index: 49;
   cursor: pointer;
+}
+
+/* Night-mode dimming — a black overlay whose opacity dims the screen. This is a
+   cheap compositor blend, unlike a body-wide CSS brightness filter which forces
+   the whole page through an offscreen render pass on every animation frame. */
+#dim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
 }
 
 /* Power save overlay */

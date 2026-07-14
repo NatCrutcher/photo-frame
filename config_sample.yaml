@@ -33,6 +33,17 @@ history:
   max_entries: 500
   allow_rating_changes: true
 
+# Downscaled-image cache. The frame is served local, downscaled copies instead
+# of full-resolution originals, which the Pi's GPU decodes and composites much
+# faster at 4K. Kept on local disk (never the NAS) and bounded by max_bytes.
+cache:
+  dir: "cache"              # local disk, relative to the app directory
+  max_edge: 3840            # foreground long-edge target in px (4K); larger images
+                            # are downscaled to this, smaller ones served as-is
+  bg_edge: 320              # blurred-background thumbnail long-edge in px
+  jpeg_quality: 85
+  max_bytes: 16000000000    # ~15 GB hard cap; least-recently-shown files evicted
+
 playlists:
   all:
     name: "All Photos"

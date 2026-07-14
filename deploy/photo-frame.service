@@ -1,0 +1,18 @@
+# Photo Frame web app (Flask). Copy to /etc/systemd/system/ and adjust the
+# User and paths for your install, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now photo-frame
+[Unit]
+Description=Photo Frame Web App
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/photo-frame
+ExecStart=/home/pi/photo-frame/venv/bin/python app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
