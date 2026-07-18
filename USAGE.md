@@ -243,7 +243,8 @@ Environment=XDG_SESSION_TYPE=wayland
 ExecStart=/usr/bin/chromium \
   --kiosk --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --disable-component-update \
-  --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl \
+  --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy \
+  --use-gl=angle --use-angle=gles \
   --ozone-platform=wayland --enable-features=UseOzonePlatform \
   http://localhost:5000
 Restart=always
@@ -308,7 +309,9 @@ compositing and rasterization:
 - `--enable-gpu-rasterization` — rasterize layers on the GPU, not the CPU
 - `--ignore-gpu-blocklist` — don't silently fall back to software rendering
 - `--enable-zero-copy` — upload textures without an extra CPU copy
-- `--use-gl=egl` — use the native EGL/GLES driver
+- `--use-gl=angle --use-angle=gles` — route GL through ANGLE's GLES backend (the
+  Pi's V3D driver). Newer Chromium dropped the old `--use-gl=egl` spelling and
+  aborts GPU init with `gl=none,angle=none` if you still pass it.
 
 Without these, Chromium often lands on software rasterization on Pi OS, which
 pegs the GPU (or CPU) and makes fades, slides, and Ken Burns at 4K stutter.
@@ -328,7 +331,7 @@ Type=simple
 User=pi
 Environment=DISPLAY=:0
 ExecStartPre=/usr/bin/unclutter -idle 0.1 -root &
-ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-component-update --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=egl http://localhost:5000
+ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-component-update --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=angle --use-angle=gles http://localhost:5000
 Restart=always
 RestartSec=10
 ```

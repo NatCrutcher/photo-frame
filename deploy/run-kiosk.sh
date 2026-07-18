@@ -95,7 +95,10 @@ flags=(
   --enable-gpu-rasterization
   --ignore-gpu-blocklist
   --enable-zero-copy
-  --use-gl=egl
+  # Route GL through ANGLE's GLES backend (the Pi's V3D driver). Newer Chromium
+  # dropped the old --use-gl=egl spelling and errors out with gl=none,angle=none.
+  --use-gl=angle
+  --use-angle=gles
 )
 
 # When launched over SSH (or any non-graphical shell) the session env vars are
