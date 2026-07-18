@@ -98,6 +98,20 @@ flags=(
   --use-gl=egl
 )
 
+# When launched over SSH (or any non-graphical shell) the session env vars are
+# unset, so probe for a running compositor's socket and adopt it. This lets
+# `ssh pi ./deploy/run-kiosk.sh` reach the desktop already running on the seat.
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ]; then
+  runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  for sock in "$runtime_dir"/wayland-[0-9]*; do
+    [ -S "$sock" ] || continue
+    export XDG_RUNTIME_DIR="$runtime_dir"
+    export WAYLAND_DISPLAY="${sock##*/}"
+    echo "No graphical session in env; adopting compositor socket $WAYLAND_DISPLAY."
+    break
+  done
+fi
+
 if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
   echo "Session: Wayland"
   flags+=(--ozone-platform=wayland --enable-features=UseOzonePlatform)
