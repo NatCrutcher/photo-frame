@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -62,7 +63,7 @@ def read_metadata_batch(paths):
             "exiftool", "-json",
             "-Rating", "-Subject", "-RegionName",
             "-ImageWidth", "-ImageHeight", "-FileModifyDate",
-            "-DateTimeOriginal", "-CreateDate",
+            "-DateTimeOriginal", "-CreateDate", "-DateCreated",
         ] + paths,
         capture_output=True, text=True,
     )
@@ -87,19 +88,90 @@ def parse_list_field(value):
     return [value]
 
 
-def resolve_date_taken(meta):
-    """Extract best available capture date, normalized to ISO format."""
-    raw = (
-        meta.get("DateTimeOriginal")
-        or meta.get("CreateDate")
-        or meta.get("FileModifyDate")
-    )
-    if not raw:
-        return None
-    # exiftool format: "YYYY:MM:DD HH:MM:SS" (possibly with timezone suffix)
+def _normalize_exif_datetime(raw):
+    """Normalize an exiftool datetime ("YYYY:MM:DD HH:MM:SS" +opt tz) to ISO."""
     date_part = raw[:10].replace(":", "-")
     time_part = raw[11:19] if len(raw) >= 19 else "00:00:00"
     return f"{date_part} {time_part}"
+
+
+def _is_plausible_date(iso):
+    """True if an ISO "YYYY-MM-DD ..." string is a real calendar date >= 1900.
+
+    Guards against degenerate EXIF values like "0000:00:00 00:00:00", which some
+    cameras/edits write; those should fall through to path inference.
+    """
+    try:
+        return datetime.strptime(iso[:10], "%Y-%m-%d").year >= 1900
+    except ValueError:
+        return False
+
+
+# Leading-date patterns for folder names, most specific first. Anchored at the
+# start so only a leading date counts (a "2019" buried in a label is ignored).
+_FULL_DATE_RE = re.compile(r"^(\d{4})[_-](\d{2})[_-](\d{2})")
+_YEAR_MONTH_RE = re.compile(r"^(\d{4})[_-](\d{2})(?:\D|$)")
+_YEAR_RE = re.compile(r"^(\d{4})(?:\D|$)")
+
+
+def _date_from_component(name):
+    """Infer an ISO date from a single path component, or None.
+
+    Tiered by precision: full YYYY[_-]MM[_-]DD, else YYYY[_-]MM (month, day->01),
+    else a bare leading year (month/day->01). Out-of-range values are rejected.
+    """
+    m = _FULL_DATE_RE.match(name)
+    if m:
+        year, month, day = (int(g) for g in m.groups())
+        if 1900 <= year <= 2099 and 1 <= month <= 12 and 1 <= day <= 31:
+            return f"{year:04d}-{month:02d}-{day:02d} 00:00:00"
+    m = _YEAR_MONTH_RE.match(name)
+    if m:
+        year, month = int(m.group(1)), int(m.group(2))
+        if 1900 <= year <= 2099 and 1 <= month <= 12:
+            return f"{year:04d}-{month:02d}-01 00:00:00"
+    m = _YEAR_RE.match(name)
+    if m:
+        year = int(m.group(1))
+        if 1900 <= year <= 2099:
+            return f"{year:04d}-01-01 00:00:00"
+    return None
+
+
+def infer_date_from_path(path):
+    """Infer a capture date from the directory names in a photo's path.
+
+    Most photos are filed under `/<year>/<YYYY_MM_DD label>/...`. Walk the
+    directories from deepest to shallowest (inner subfolders like `DNG` or
+    `Original JPEG` carry no date; the top-level year folder is the last resort)
+    and return the first component that starts with a date. None if none match.
+    """
+    dirs = os.path.dirname(os.path.abspath(path)).split(os.sep)
+    for name in reversed(dirs):
+        iso = _date_from_component(name)
+        if iso:
+            return iso
+    return None
+
+
+def resolve_date_taken(meta, path):
+    """Best available capture date (ISO), from metadata then the file path.
+
+    Metadata capture date wins; when absent, infer from the directory path.
+    Returns None when no date can be determined, so date filters exclude the
+    photo. FileModifyDate is deliberately not used — bulk re-exports make it the
+    edit/copy time, not the capture time.
+    """
+    raw = (
+        meta.get("DateTimeOriginal")
+        or meta.get("CreateDate")
+        or meta.get("DateCreated")
+    )
+    if raw:
+        iso = _normalize_exif_datetime(raw)
+        if _is_plausible_date(iso):
+            return iso
+    return infer_date_from_path(path)
 
 
 def compute_orientation(width, height):
@@ -154,7 +226,7 @@ def index_photos(config):
             height = meta.get("ImageHeight")
             orientation = compute_orientation(width, height)
             file_modified = meta.get("FileModifyDate")
-            date_taken = resolve_date_taken(meta)
+            date_taken = resolve_date_taken(meta, path)
 
             conn.execute("""
                 INSERT INTO photos (path, rating, keywords, people, width, height,
