@@ -7,9 +7,38 @@ import random
 from db import get_db, row_to_dict
 
 
+# Filter keys understood by build_query. Kept as a named set so the config
+# validator can flag them when they appear outside a playlist's `filter:` block.
+FILTER_KEYS = frozenset(
+    {"rating", "people", "keywords", "date_taken", "folders", "orientation"}
+)
+
+
 def load_playlists(config):
     """Return dict of playlist_id -> playlist config."""
     return config.get("playlists", {})
+
+
+def validate_playlists(playlists):
+    """Raise ValueError if any playlist has filter keys outside its `filter:` block.
+
+    A misplaced filter key (e.g. `date_taken` at the playlist top level instead
+    of under `filter:`) is silently ignored by build_query, degrading the
+    playlist to "match everything". Fail fast at startup instead.
+    """
+    for playlist_id, playlist_config in playlists.items():
+        if not isinstance(playlist_config, dict):
+            continue
+        misplaced = sorted(FILTER_KEYS & set(playlist_config))
+        if misplaced:
+            keys = ", ".join(misplaced)
+            raise ValueError(
+                f"Playlist '{playlist_id}' has filter key(s) [{keys}] at the top "
+                f"level. Nest them under a `filter:` block, e.g.\n"
+                f"  {playlist_id}:\n"
+                f"    filter:\n"
+                f"      {misplaced[0]}: ..."
+            )
 
 
 def _escape_like(s):
@@ -123,7 +152,10 @@ def build_exclude_conditions(exclude_config):
     conditions = []
     params = []
     for person in exclude_config.get("people", []):
-        conditions.append("NOT (people LIKE ?)")
+        # A person may be tagged as a face region (people, from RegionName) or
+        # as a subject keyword (keywords, from Subject); exclude on either.
+        conditions.append("NOT (people LIKE ? OR keywords LIKE ?)")
+        params.append(f'%"{person}"%')
         params.append(f'%"{person}"%')
     for kw in exclude_config.get("keywords", []):
         conditions.append("NOT (keywords LIKE ?)")

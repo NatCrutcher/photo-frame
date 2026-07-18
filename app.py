@@ -18,7 +18,7 @@ from flask import (
 from PIL import Image, ImageOps
 
 from db import get_db, init_db
-from playlist import get_playlist_photos, load_playlists
+from playlist import get_playlist_photos, load_playlists, validate_playlists
 
 app = Flask(__name__)
 
@@ -124,7 +124,9 @@ class FrameState:
 
 def _load_config(path="config.yaml"):
     with open(path) as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    validate_playlists(load_playlists(config))
+    return config
 
 
 config = _load_config()
