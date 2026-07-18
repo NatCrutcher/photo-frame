@@ -25,6 +25,7 @@ Environment=XDG_SESSION_TYPE=wayland
 ExecStart=/usr/bin/chromium \
   --kiosk --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --disable-component-update \
+  --password-store=basic \
   --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy \
   --use-gl=angle --use-angle=gles \
   --ozone-platform=wayland --enable-features=UseOzonePlatform \

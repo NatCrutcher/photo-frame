@@ -243,6 +243,7 @@ Environment=XDG_SESSION_TYPE=wayland
 ExecStart=/usr/bin/chromium \
   --kiosk --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --disable-component-update \
+  --password-store=basic \
   --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy \
   --use-gl=angle --use-angle=gles \
   --ozone-platform=wayland --enable-features=UseOzonePlatform \
@@ -268,6 +269,9 @@ Notes:
 - Adjust `User`, the UID in `XDG_RUNTIME_DIR`, and `WAYLAND_DISPLAY` to match your
   system. If the service can't reach the display, the compositor may name the
   socket `wayland-1`; check with the `ls` command in the comment.
+- `--password-store=basic` stops Chromium from opening the GNOME keyring (which
+  pops an unlock dialog at startup with no one to answer it). The frame stores no
+  logins, so its built-in plaintext store is fine.
 - Cursor hiding: `unclutter` is X11-only and does nothing on Wayland. On Wayland
   the pointer generally stays out of the way in kiosk mode; if it lingers, hide it
   through your compositor (labwc/Wayfire) settings.
@@ -331,7 +335,7 @@ Type=simple
 User=pi
 Environment=DISPLAY=:0
 ExecStartPre=/usr/bin/unclutter -idle 0.1 -root &
-ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-component-update --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=angle --use-angle=gles http://localhost:5000
+ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-component-update --password-store=basic --enable-gpu-rasterization --ignore-gpu-blocklist --enable-zero-copy --use-gl=angle --use-angle=gles http://localhost:5000
 Restart=always
 RestartSec=10
 ```

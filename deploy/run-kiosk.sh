@@ -91,6 +91,9 @@ flags=(
   --disable-infobars
   --disable-session-crashed-bubble
   --disable-component-update
+  # Don't touch the GNOME keyring (it pops an unlock dialog on the kiosk); the
+  # frame stores no logins, so Chromium's built-in plaintext store is fine.
+  --password-store=basic
   # GPU acceleration — see USAGE.md; verify at chrome://gpu
   --enable-gpu-rasterization
   --ignore-gpu-blocklist
