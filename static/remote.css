@@ -45,6 +45,7 @@ header h1 { font-size: 18px; white-space: nowrap; }
   font-size: 14px;
   color: #aaa;
 }
+#position-display { color: #888; font-size: 13px; margin-bottom: 4px; }
 #rating-display { color: #f5c518; font-size: 20px; margin-bottom: 4px; }
 
 /* Controls */

@@ -166,6 +166,15 @@ def _photo_response(photo):
     return p
 
 
+def _position_fields():
+    """Current 1-based position and total count of the active playlist.
+
+    Caller must hold state.lock. total is 0 for an empty playlist; the client
+    hides the indicator when total is 0 or there is no current photo.
+    """
+    return {"position": state.index + 1, "total": len(state.photos)}
+
+
 def _effective_display(key, default):
     """Display setting with per-playlist override."""
     playlists = load_playlists(config)
@@ -217,6 +226,7 @@ def api_now_playing():
             "photo": _photo_response(state.current_photo),
             "playlist": state.active_playlist_id,
             "paused": state.paused,
+            **_position_fields(),
             "interval": _effective_display("interval_secs", 30),
             "display": {
                 "fit_mode": _effective_display("fit_mode", "fit"),
@@ -232,14 +242,16 @@ def api_now_playing():
 def api_next():
     with state.lock:
         photo = state.advance()
-    return jsonify({"photo": _photo_response(photo)})
+        position = _position_fields()
+    return jsonify({"photo": _photo_response(photo), **position})
 
 
 @app.route("/api/control/prev", methods=["POST"])
 def api_prev():
     with state.lock:
         photo = state.go_prev()
-    return jsonify({"photo": _photo_response(photo)})
+        position = _position_fields()
+    return jsonify({"photo": _photo_response(photo), **position})
 
 
 @app.route("/api/control/pause", methods=["POST"])
@@ -257,6 +269,7 @@ def api_switch_playlist(playlist_id):
         return jsonify({
             "playlist": playlist_id,
             "photo": _photo_response(state.current_photo),
+            **_position_fields(),
         })
 
 
@@ -271,6 +284,7 @@ def api_reload():
             "reloaded": True,
             "count": len(state.photos),
             "photo": _photo_response(state.current_photo),
+            **_position_fields(),
         })
 
 

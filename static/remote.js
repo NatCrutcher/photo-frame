@@ -4,6 +4,7 @@
 
   const playlistSelect = document.getElementById("playlist-select");
   const currentPhotoImg = document.getElementById("current-photo");
+  const positionDisplay = document.getElementById("position-display");
   const ratingDisplay = document.getElementById("rating-display");
   const peopleDisplay = document.getElementById("people-display");
   const keywordsDisplay = document.getElementById("keywords-display");
@@ -56,6 +57,17 @@
     ratingEditor.classList.remove("hidden");
   }
 
+  // Show "n of m" from the top-level now-playing / control response (position is
+  // playlist state, not a photo field). Blank when there's no photo or an empty
+  // playlist so a stale count never lingers.
+  function updatePosition(data) {
+    if (data.photo && data.total) {
+      positionDisplay.textContent = data.position + " of " + data.total;
+    } else {
+      positionDisplay.textContent = "";
+    }
+  }
+
   function updateStars(rating) {
     stars.forEach(function (s) {
       s.classList.toggle("lit", parseInt(s.dataset.rating) <= rating);
@@ -83,6 +95,7 @@
   playlistSelect.addEventListener("change", async function () {
     const data = await post("/api/control/playlist/" + playlistSelect.value);
     if (data.photo) updateNowPlaying(data.photo);
+    updatePosition(data);
   });
 
   /* ---- Controls ---- */
@@ -90,11 +103,13 @@
   btnNext.addEventListener("click", async function () {
     const data = await post("/api/control/next");
     if (data.photo) updateNowPlaying(data.photo);
+    updatePosition(data);
   });
 
   btnPrev.addEventListener("click", async function () {
     const data = await post("/api/control/prev");
     if (data.photo) updateNowPlaying(data.photo);
+    updatePosition(data);
   });
 
   btnPause.addEventListener("click", async function () {
@@ -163,6 +178,7 @@
     const data = await api("/api/now-playing");
     isPaused = data.paused;
     updatePauseButton();
+    updatePosition(data);
     if (data.photo && (!currentPhoto || data.photo.url !== currentPhoto.url)) {
       updateNowPlaying(data.photo);
       loadHistory();
